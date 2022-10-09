@@ -14,8 +14,8 @@ from subprocess import Popen, PIPE, STDOUT, call
 
 
 def get_immediate_subdirectories(a_dir):
-    return [(os.path.join(a_dir, name)) for name in os.listdir(a_dir)
-            if os.path.isdir(os.path.join(a_dir, name))]
+    return [(os.path.join(a_dir, name).replace("\\","/")) for name in os.listdir(a_dir)
+            if os.path.isdir(os.path.join(a_dir, name).replace("\\","/"))]
 
 
 TMP_DIR = ""
