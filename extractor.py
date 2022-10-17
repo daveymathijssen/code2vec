@@ -9,12 +9,19 @@ class Extractor:
         self.jar_path = jar_path
 
     def extract_paths(self, path):
-        command = ['java', '-cp', self.jar_path, 'JavaExtractor.App', '--max_path_length',
-                   str(self.max_path_length), '--max_path_width', str(self.max_path_width), '--file', path, '--no_hash']
+        #command = ['java', '-cp', self.jar_path, 'JavaExtractor.App', '--max_path_length',
+        #           str(self.max_path_length), '--max_path_width', str(self.max_path_width), '--file', path, '--no_hash']
+        #Changed command to C# command
+        command = ['dotnet', 'run', '--project', self.jar_path, '--max_length',
+                   str(self.max_path_length), '--max_width', str(self.max_path_width), '--path', path, '--no_hash']
+        
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = process.communicate()
+        print('test output: ' + out.decode())
+        print('test error: ' + err.decode())
         output = out.decode().splitlines()
         if len(output) == 0:
+            print('Error: no output found')
             err = err.decode()
             raise ValueError(err)
         hash_to_string_dict = {}
@@ -23,8 +30,11 @@ class Extractor:
             parts = line.rstrip().split(' ')
             method_name = parts[0]
             current_result_line_parts = [method_name]
+            print('test method name: ' + method_name)
             contexts = parts[1:]
+            print('Number of contexts: ' + str(len(contexts)))
             for context in contexts[:self.config.MAX_CONTEXTS]:
+                print('test context: ' + context)
                 context_parts = context.split(',')
                 context_word1 = context_parts[0]
                 context_path = context_parts[1]

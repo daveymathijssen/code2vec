@@ -6,8 +6,8 @@ from extractor import Extractor
 SHOW_TOP_CONTEXTS = 10
 MAX_PATH_LENGTH = 8
 MAX_PATH_WIDTH = 2
-JAR_PATH = 'JavaExtractor/JPredict/target/JavaExtractor-0.0.1-SNAPSHOT.jar'
-
+#JAR_PATH = 'JavaExtractor/JPredict/target/JavaExtractor-0.0.1-SNAPSHOT.jar'
+JAR_PATH = 'CSharpExtractor/CSharpExtractor/Extractor/Extractor.csproj' # Changed path to C# project
 
 class InteractivePredictor:
     exit_keywords = ['exit', 'quit', 'q']
@@ -26,7 +26,7 @@ class InteractivePredictor:
             return file.readlines()
 
     def predict(self):
-        input_filename = 'Input.java'
+        input_filename = 'Input.cs' # changed to cs file instead of .java
         print('Starting interactive prediction...')
         while True:
             print(
@@ -37,6 +37,9 @@ class InteractivePredictor:
                 return
             try:
                 predict_lines, hash_to_string_dict = self.path_extractor.extract_paths(input_filename)
+                print('predict_lines: ' + str(predict_lines))
+                print('')
+                print('hash_to_string_dict' + str(hash_to_string_dict))
             except ValueError as e:
                 print(e)
                 continue

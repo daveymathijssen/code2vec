@@ -16,7 +16,7 @@ namespace Extractor
         [Option('p', "path", Default = "./data/", HelpText = "Where to find code files. <.>")]
         public string Path { get; set; }
 
-        [Option('l', "max_length", Default = 9, HelpText = "Max path length")]
+        [Option('l', "max_length", Default = 8, HelpText = "Max path length")]
         public int MaxLength { get; set; }
 
         [Option('l', "max_width", Default = 2, HelpText = "Max path length")]
@@ -91,7 +91,8 @@ namespace Extractor
 
         public static IEnumerable<String> SplitToSubtokens(String name)
         {
-            return Regex.Split(name.Trim(), "(?<=[a-z])(?=[A-Z])|_|[0-9]|(?<=[A-Z])(?=[A-Z][a-z])|\\s+")
+            // Removed splitting 0-9, as we want to keep numbers within the variables to keep them unique
+            return Regex.Split(name.Trim(), "(?<=[a-z])(?=[A-Z])|_|(?<=[A-Z])(?=[A-Z][a-z])|\\s+") // Original: (?<=[a-z])(?=[A-Z])|_|[0-9]|(?<=[A-Z])(?=[A-Z][a-z])|\\s+
                 .Where(s => s.Length > 0)
                 .Select(s => NormalizeName(s))
                 .Where(s => s.Length > 0);

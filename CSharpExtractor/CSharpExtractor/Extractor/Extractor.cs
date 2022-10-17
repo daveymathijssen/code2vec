@@ -201,23 +201,32 @@ namespace Extractor
                     contexts.Add(pathString);
                 }
 
-                var commentNodes = tree.GetRoot().DescendantTrivia().Where(
-                    node => node.IsKind(SyntaxKind.MultiLineCommentTrivia) || node.IsKind(SyntaxKind.SingleLineCommentTrivia) || node.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia));
-                foreach (SyntaxTrivia trivia in commentNodes)
-                {
+                //var commentNodes = tree.GetRoot().DescendantTrivia().Where(
+                //    node => node.IsKind(SyntaxKind.MultiLineCommentTrivia) || node.IsKind(SyntaxKind.SingleLineCommentTrivia) || node.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia));
+                
+                // We have disabled the comments
+                //foreach (SyntaxTrivia trivia in commentNodes)
+                //{
 
-                    string commentText = trivia.ToString().Trim(removeFromComments);
+                //    string commentText = trivia.ToString().Trim(removeFromComments);
 
-                    string normalizedTrivia = SplitNameUnlessEmpty(commentText);
-                    var parts = normalizedTrivia.Split('|');
-                    for (int i = 0; i < Math.Ceiling((double)parts.Length / (double)5); i++)
-                    {
-                        var batch = String.Join("|", parts.Skip(i * 5).Take(5));
-                        contexts.Add(batch + "," + "COMMENT" + "," + batch);
-                    }
-                }
+                //    string normalizedTrivia = SplitNameUnlessEmpty(commentText);
+                //    var parts = normalizedTrivia.Split('|');
+                //    for (int i = 0; i < Math.Ceiling((double)parts.Length / (double)5); i++)
+                //    {
+                //        var batch = String.Join("|", parts.Skip(i * 5).Take(5));
+                //        contexts.Add(batch + "," + "COMMENT" + "," + batch);
+                //    }
+                //}
                 results.Add(String.Join("|", subtokensMethodName) + " " + String.Join(" ", contexts));  
             }
+
+            // When we do not hash the pathts, we will use the single result for prediction purposes
+            if (!this.ShouldHash)
+            {
+                Console.WriteLine(results.Single());
+            }
+
             return results;
         }
 
