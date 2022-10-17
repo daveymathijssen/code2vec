@@ -143,6 +143,7 @@ class Code2VecModel(Code2VecModelBase):
             subtokens_evaluation_metric = SubtokensEvaluationMetric(
                 partial(common.filter_impossible_names, self.vocabs.target_vocab.special_words))
             topk_accuracy_evaluation_metric = TopKAccuracyEvaluationMetric(
+                partial(common.filter_impossible_names, self.vocabs.target_vocab.special_words),
                 self.config.TOP_K_WORDS_CONSIDERED_DURING_PREDICTION,
                 partial(common.get_first_match_word_from_top_predictions, self.vocabs.target_vocab.special_words))
             start_time = time.time()
@@ -181,6 +182,14 @@ class Code2VecModel(Code2VecModelBase):
                         self._trace_evaluation(total_predictions, elapsed)
             except tf.errors.OutOfRangeError:
                 pass  # reader iterator is exhausted and have no more batches to produce.
+            
+            self.log('tp: ' + str(subtokens_evaluation_metric.nr_true_positives))
+            self.log('fn: ' + str(subtokens_evaluation_metric.nr_false_negatives))
+            self.log('tn: ' + str(subtokens_evaluation_metric.nr_true_negatives))
+            self.log('fp: ' + str(subtokens_evaluation_metric.nr_false_positives))
+           
+            self.log('predictions: ' + str(subtokens_evaluation_metric.nr_predictions))
+                
             self.log('Done evaluating, epoch reached')
             log_output_file.write(str(topk_accuracy_evaluation_metric.topk_correct_predictions) + '\n')
         if self.config.EXPORT_CODE_VECTORS:
@@ -451,6 +460,7 @@ class SubtokensEvaluationMetric:
     def __init__(self, filter_impossible_names_fn):
         self.nr_true_positives: int = 0
         self.nr_false_positives: int = 0
+        self.nr_true_negatives: int = 0
         self.nr_false_negatives: int = 0
         self.nr_predictions: int = 0
         self.filter_impossible_names_fn = filter_impossible_names_fn
@@ -458,14 +468,19 @@ class SubtokensEvaluationMetric:
     def update_batch(self, results):
         for original_name, top_words in results:
             prediction = self.filter_impossible_names_fn(top_words)[0]
-            original_subtokens = Counter(common.get_subtokens(original_name))
-            predicted_subtokens = Counter(common.get_subtokens(prediction))
-            self.nr_true_positives += sum(count for element, count in predicted_subtokens.items()
-                                          if element in original_subtokens)
-            self.nr_false_positives += sum(count for element, count in predicted_subtokens.items()
-                                           if element not in original_subtokens)
-            self.nr_false_negatives += sum(count for element, count in original_subtokens.items()
-                                           if element not in predicted_subtokens)
+            
+            if original_name == 'bad' and prediction == 'bad':
+                self.nr_true_positives += 1
+            
+            if original_name == 'bad' and prediction == 'good':
+                self.nr_false_negatives += 1
+            
+            if original_name == 'good' and prediction == 'good':
+                self.nr_true_negatives += 1
+            
+            if original_name == 'good' and prediction == 'bad':
+                self.nr_false_positives += 1
+
             self.nr_predictions += 1
 
     @property
@@ -482,11 +497,17 @@ class SubtokensEvaluationMetric:
 
     @property
     def precision(self):
-        return self.nr_true_positives / (self.nr_true_positives + self.nr_false_positives)
+        if self.nr_true_positives + self.nr_false_positives == 0:
+            return 0
+        else:
+            return self.nr_true_positives / (self.nr_true_positives + self.nr_false_positives)
 
     @property
     def recall(self):
-        return self.nr_true_positives / (self.nr_true_positives + self.nr_false_negatives)
+        if self.nr_true_positives + self.nr_false_negatives == 0:
+            return 0
+        else:
+            return self.nr_true_positives / (self.nr_true_positives + self.nr_false_negatives)
 
     @property
     def f1(self):
@@ -495,25 +516,34 @@ class SubtokensEvaluationMetric:
         else:
             return 2 * self.precision * self.recall / (self.precision + self.recall)
 
-
+# Accuracy
 class TopKAccuracyEvaluationMetric:
-    def __init__(self, top_k: int, get_first_match_word_from_top_predictions_fn):
+    def __init__(self, filter_impossible_names_fn, top_k: int, get_first_match_word_from_top_predictions_fn):
         self.top_k = top_k
+        self.filter_impossible_names_fn = filter_impossible_names_fn
         self.nr_correct_predictions = np.zeros(self.top_k)
         self.nr_predictions: int = 0
         self.get_first_match_word_from_top_predictions_fn = get_first_match_word_from_top_predictions_fn
+        self.nr_true_positives: int = 0
+        self.nr_false_positives: int = 0
+        self.nr_true_negatives: int = 0
+        self.nr_false_negatives: int = 0
 
     def update_batch(self, results):
         for original_name, top_predicted_words in results:
+            prediction = self.filter_impossible_names_fn(top_predicted_words)[0]
+            
+            if original_name == 'bad' and prediction == 'bad':
+                self.nr_true_positives += 1
+            
+            if original_name == 'good' and prediction == 'good':
+                self.nr_true_negatives += 1
+            
             self.nr_predictions += 1
-            found_match = self.get_first_match_word_from_top_predictions_fn(original_name, top_predicted_words)
-            if found_match is not None:
-                suggestion_idx, _ = found_match
-                self.nr_correct_predictions[suggestion_idx:self.top_k] += 1
 
     @property
     def topk_correct_predictions(self):
-        return self.nr_correct_predictions / self.nr_predictions
+        return (self.nr_true_negatives + self.nr_true_positives) / self.nr_predictions
 
 
 class _TFTrainModelInputTensorsFormer(ModelInputTensorsFormer):
